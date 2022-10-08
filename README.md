@@ -6,8 +6,11 @@
 
 ![demo](screenshot/gun-shape.gif)
 
-
 ## Build and Run
+
+### Tools
+- gcc version 9.4.0
+
 ```
 gcc main.c -o main && ./main
 ```
