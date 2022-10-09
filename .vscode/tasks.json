@@ -5,6 +5,7 @@
       "label": "C/C++: gcc arquivo de build ativo",
       "command": "/usr/bin/gcc",
       "args": [
+        "-fopenmp",
         "-fdiagnostics-color=always",
         "-g",
         "${file}",

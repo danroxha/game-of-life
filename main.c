@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
   }
 
   struct game_of_life gfl = new_game_of_life(factor);
-
+  
   int key;
   int generation = 0;
 

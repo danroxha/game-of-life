@@ -3,8 +3,8 @@
 
 #define LIVE "█"
 #define DEAD " "
-#define LINE 1100
-#define COL 820
+#define LINE 1000
+#define COL 800
 
 #define MIN_ENABLED_THREAD 1
 #define DEFAULT_ENABLED_THREADS 4
@@ -53,6 +53,21 @@ struct game_of_life new_game_of_life(int factor) {
   generete_seed(&glf, factor);
 
   // gun_shape(&glf, 10, 10);
+  // gun_shape(&glf, 110, 10);
+  // gun_shape(&glf, 170, 10);
+  // gun_shape(&glf, 220, 10);
+  // gun_shape(&glf, 280, 10);
+  // gun_shape(&glf, 340, 10);
+  // gun_shape(&glf, 390, 10);
+  // gun_shape(&glf, 450, 10);
+  // gun_shape(&glf, 500, 10);
+  // gun_shape(&glf, 550, 10);
+  // gun_shape(&glf, 600, 10);
+  // gun_shape(&glf, 650, 10);
+  // gun_shape(&glf, 750, 10);
+  // gun_shape(&glf, 10, 50);
+  // gun_shape(&glf, 10, 100);
+  // gun_shape(&glf, 0, 121);
 
   return glf;
 }
@@ -66,7 +81,33 @@ void apply_rules(struct game_of_life *gfl) {
     int num_threads = omp_get_num_threads();
     int range_working_thread = (int) gfl->lines / num_threads;
     int initial_i = thread_id * range_working_thread;
-    int end_i = initial_i + range_working_thread - 1;
+    int end_i = initial_i + range_working_thread;
+
+    
+    /*
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...799]
+      t = 8; lines = 800;
+      id = 0; 
+        range_working_thread = () 1000 / 8 = 125
+        initial_i = 0 * 125 = 0
+        end_i = 0 + 125 = 125
+
+      id = 1;
+        range_working_thread = () 1000 / 8 = 125
+        initial_i = 1 * 125 = 125
+        end_i = 125 + 125 = 250
+
+      id = 2;
+        range_working_thread = () 1000 / 8 = 125
+        initial_i = 2 * 125 = 250
+        end_i = 250 + 125 = 375
+
+      id = ;
+        range_working_thread = () 1000 / 8 = 125
+        initial_i = 2 * 125 = 250
+        end_i = 250 + 125 = 375
+      
+    * /
 
     /**
      * [
@@ -84,7 +125,7 @@ void apply_rules(struct game_of_life *gfl) {
         int num_threads = omp_get_num_threads();
         int range_working_thread = (int) gfl->collumns / num_threads;
         int initial_j = thread_id * range_working_thread;
-        int end_j = initial_j + range_working_thread - 1;
+        int end_j = initial_j + range_working_thread;
 
         /**
          *  [ 0x1,      0x2,      0x3  ]
@@ -113,7 +154,7 @@ void check_neigborn(struct game_of_life *gfl, int line, int col) {
       int j = col + x;
       int i = line + y;
 
-      if(j >= 0 && j < COL && i >= 0 && i < LINE) {
+      if(j >= 0 && j < gfl->collumns && i >= 0 && i < gfl->lines) {
         struct cell neigborn = gfl->board[i][j];
         if(neigborn.alive) {
           neigborn_alive++;
@@ -137,7 +178,7 @@ void update_generation(struct game_of_life *gfl) {
     int num_threads = omp_get_num_threads();
     int range_working_thread = (int) gfl->lines/num_threads;
     int initial_i = thread_id * range_working_thread;
-    int end_i = initial_i + range_working_thread - 1;
+    int end_i = initial_i + range_working_thread;
 
     for(int i = initial_i; i < end_i; i++) {
         
@@ -147,7 +188,7 @@ void update_generation(struct game_of_life *gfl) {
         int num_threads = omp_get_num_threads();
         int range_working_thread = (int) gfl->collumns / num_threads;
         int initial_j = thread_id * range_working_thread;
-        int end_j = initial_j + range_working_thread - 1;
+        int end_j = initial_j + range_working_thread;
 
         for(int j = initial_j; j < end_j; j++) {
           gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
@@ -159,27 +200,55 @@ void update_generation(struct game_of_life *gfl) {
 }
 
 void render_board(struct game_of_life gfl, int x, int y, struct winsize screen, bool refresh) {
-  for(int i = 0; i < screen.ws_row - 1; i++) {
+  
+  omp_lock_t output_lock;
+  omp_init_lock(&output_lock);
+  
+  
+  #pragma omp parallel num_threads(DEFAULT_ENABLED_THREADS) 
+  {
+    int thread_id = omp_get_thread_num();
+    int num_threads = omp_get_num_threads();
+    int range_working_thread = (int) screen.ws_row / num_threads ;
+    int initial_i = thread_id * range_working_thread;
+    int end_i = initial_i + range_working_thread;
 
-    if(i >= gfl.lines)
-      break;
-
-    for(int j = 0; j < screen.ws_col; j++) {
-
-      if(j >= gfl.collumns)
+    for(int i = initial_i; i < end_i; i++) {
+      if(i > gfl.lines)
         break;
 
-      if(gfl.board[i + y][j + x].alive) {
-        print(j + 1, i + 1, LIVE);
-        continue; 
-      }
+      #pragma omp parallel num_threads(DEFAULT_ENABLED_THREADS) 
+      {
+        
+        int thread_id = omp_get_thread_num();
+        int num_threads = omp_get_num_threads();
+        int range_working_thread = (int) screen.ws_col / num_threads;
+        int initial_j = thread_id * range_working_thread;
+        int end_j = initial_j + range_working_thread;
 
-      if(refresh || gfl.board[i + y][j + x].previous_generation != gfl.board[i + y][j + x].alive) {
-        print(j + 1, i + 1, DEAD);
+        for(int j = initial_j; j < end_j; j++) {
+
+          if(j > gfl.collumns)
+            break;
+
+          if(gfl.board[i + y][j + x].alive) {
+            omp_set_lock(&output_lock);
+            print(j, i, LIVE);
+            omp_unset_lock(&output_lock);
+            continue; 
+          }
+
+          if(refresh || gfl.board[i + y][j + x].previous_generation != gfl.board[i + y][j + x].alive) {
+            omp_set_lock(&output_lock);
+            print(j, i, DEAD);
+            omp_unset_lock(&output_lock);
+          }
+        }
       }
-        // print(j + 1, i + 1, DEAD);
     }
   }
+
+  omp_destroy_lock(&output_lock);
 }
 
 void blinker_shape(struct game_of_life *gfl, int x, int y) {
