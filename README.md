@@ -13,8 +13,15 @@
 - gcc version 9.4.0
 - openmp
 
+### Run
 ```
  gcc -fopenmp main.c -o main && ./main
+```
+
+or
+
+```
+export OMP_NUM_THREADS=10 && ./main
 ```
 
 ## Support

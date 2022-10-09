@@ -119,12 +119,12 @@ void render_board(struct game_of_life gfl, int x, int y, struct winsize screen, 
   omp_init_lock(&output_lock);
   
   
-  #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
+  #pragma omp parallel
   {
     #pragma omp for
     for(int i = 0; i < screen.ws_row; i++) {
       
-      #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
+      #pragma omp parallel
       {
         #pragma omp for
         for(int j = 0; j < screen.ws_col; j++) {
