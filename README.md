@@ -1,4 +1,4 @@
-## ***Sequential implementaton***
+## ***Parallel implementaton - (OpenMP)***
 # Conway's Game of Life
 
 [click here](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)
