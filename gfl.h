@@ -28,6 +28,10 @@ struct game_of_life {
   int lines;
 };
 
+struct array_range {
+  int start;
+  int end;
+};
 
 void beacon_shape(struct game_of_life *, int, int );
 void blinker_shape(struct game_of_life *, int, int);
@@ -38,6 +42,7 @@ void gun_shape(struct game_of_life *, int, int);
 
 void render_board(struct game_of_life, int, int, struct winsize, bool);
 struct game_of_life new_game_of_life();
+struct array_range thread_workspace_range(int, int, int) ;
 void apply_rules(struct game_of_life *);
 void update_generation(struct game_of_life *);
 void check_neigborn(struct game_of_life *, int, int);
@@ -73,17 +78,9 @@ struct game_of_life new_game_of_life(int factor) {
 }
 
 void apply_rules(struct game_of_life *gfl) {
-  
-  
   #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS) 
   {
-    int thread_id = omp_get_thread_num();
-    int num_threads = omp_get_num_threads();
-    int range_working_thread = (int) gfl->lines / num_threads;
-    int initial_i = thread_id * range_working_thread;
-    int end_i = initial_i + range_working_thread;
-
-    
+    struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), gfl->lines);
     /*
       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...799]
       t = 8; lines = 800;
@@ -117,24 +114,18 @@ void apply_rules(struct game_of_life *gfl) {
      * ]
      * */
 
-    #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
-    {
-      for(int i = initial_i; i < end_i; i++) {
-        
-        int thread_id = omp_get_thread_num();
-        int num_threads = omp_get_num_threads();
-        int range_working_thread = (int) gfl->collumns / num_threads;
-        int initial_j = thread_id * range_working_thread;
-        int end_j = initial_j + range_working_thread;
-
+    for(int i = range.start; i < range.end; i++) {
+      #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
+      {
         /**
          *  [ 0x1,      0x2,      0x3  ]
          *     |         |         |
          *  thread 4  thread 5  thread 6
          * 
          * */
-
-        for(int j = initial_j; j < end_j; j++) {
+        struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), gfl->collumns);
+        
+        for(int j = range.start; j < range.end; j++) {
           check_neigborn(gfl, i, j);
         }
       }
@@ -170,27 +161,16 @@ void check_neigborn(struct game_of_life *gfl, int line, int col) {
 }
 
 void update_generation(struct game_of_life *gfl) {
-
   #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS) 
   {
-    
-    int thread_id = omp_get_thread_num();
-    int num_threads = omp_get_num_threads();
-    int range_working_thread = (int) gfl->lines/num_threads;
-    int initial_i = thread_id * range_working_thread;
-    int end_i = initial_i + range_working_thread;
+    struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), gfl->lines);
 
-    for(int i = initial_i; i < end_i; i++) {
-        
+    for(int i = range.start; i < range.end; i++) {     
       #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
       {
-        int thread_id = omp_get_thread_num();
-        int num_threads = omp_get_num_threads();
-        int range_working_thread = (int) gfl->collumns / num_threads;
-        int initial_j = thread_id * range_working_thread;
-        int end_j = initial_j + range_working_thread;
+        struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), gfl->collumns);
 
-        for(int j = initial_j; j < end_j; j++) {
+        for(int j = range.start; j < range.end; j++) {
           gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
           gfl->board[i][j].alive = gfl->board[i][j].next_generation;
         }
@@ -207,26 +187,17 @@ void render_board(struct game_of_life gfl, int x, int y, struct winsize screen, 
   
   #pragma omp parallel num_threads(DEFAULT_ENABLED_THREADS) 
   {
-    int thread_id = omp_get_thread_num();
-    int num_threads = omp_get_num_threads();
-    int range_working_thread = (int) screen.ws_row / num_threads ;
-    int initial_i = thread_id * range_working_thread;
-    int end_i = initial_i + range_working_thread;
+    struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), screen.ws_row);
 
-    for(int i = initial_i; i < end_i; i++) {
+    for(int i = range.start; i < range.end; i++) {
       if(i > gfl.lines)
         break;
 
       #pragma omp parallel num_threads(DEFAULT_ENABLED_THREADS) 
       {
-        
-        int thread_id = omp_get_thread_num();
-        int num_threads = omp_get_num_threads();
-        int range_working_thread = (int) screen.ws_col / num_threads;
-        int initial_j = thread_id * range_working_thread;
-        int end_j = initial_j + range_working_thread;
+        struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), screen.ws_col);
 
-        for(int j = initial_j; j < end_j; j++) {
+        for(int j = range.start; j < range.end; j++) {
 
           if(j > gfl.collumns)
             break;
@@ -339,23 +310,33 @@ void gun_shape(struct game_of_life *glf, int x, int y) {
 void generete_seed(struct game_of_life *glf, int factor) {
 
   srand(time(0));
+  #pragma omp parallel
+  {
+    struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), glf->lines);
 
-  for(int i = 0; i < glf->lines; i++) {
-    for(int j = 0; j < glf->collumns; j++) {
-      glf->board[i][j].alive = false;
-      glf->board[i][j].previous_generation = false;
-      glf->board[i][j].next_generation = false;
-    }
-  }
-  
-  for(int i = 0; i < glf->lines; i++) {
-    for(int j = 0; j < glf->collumns; j++) {
-      glf->board[i][j].alive = rand() % factor == 1;
-      glf->board[i][j].previous_generation = glf->board[i][j].alive;
-      glf->board[i][j].next_generation = glf->board[i][j].alive;
+    for(int i = range.start; i < range.end; i++) {
+      
+      #pragma omp parallel num_threads(DEFAULT_ENABLED_THREADS) 
+      {
+        struct array_range range = thread_workspace_range(omp_get_thread_num(), omp_get_num_threads(), glf->collumns);
+
+        for(int j = range.start; j < range.end; j++) {
+          glf->board[i][j].alive = rand() % factor == 1;
+          glf->board[i][j].previous_generation = glf->board[i][j].alive;
+          glf->board[i][j].next_generation = glf->board[i][j].alive;
+        }
+      }
     }
   }
 }
 
+struct array_range thread_workspace_range(int thread_id, int num_threads, int size) {
+  int length = (int) size / num_threads;
+  int start = thread_id * length;
+  int end = start + length;
+  
+  struct array_range range = {.start = start, .end=end };
+  return range;
+}
 
 #endif // __SCREEN_H__
