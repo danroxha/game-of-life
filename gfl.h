@@ -6,10 +6,15 @@
 #define LINE 1100
 #define COL 820
 
+#define MIN_ENABLED_THREAD 1
+#define DEFAULT_ENABLED_THREADS 4
+#define MAX_ENABLED_NUMBER_THREADS 8
+
 #include<stdio.h>
 #include<stdbool.h>
 #include<stdlib.h>
 #include<time.h>
+#include<omp.h>
 
 struct cell {
   bool alive;
@@ -47,13 +52,51 @@ struct game_of_life new_game_of_life(int factor) {
 
   generete_seed(&glf, factor);
 
+  // gun_shape(&glf, 10, 10);
+
   return glf;
 }
 
 void apply_rules(struct game_of_life *gfl) {
-  for(int i = 0; i < gfl->lines; i++) {
-    for(int j = 0; j < gfl->collumns; j++) {
-      check_neigborn(gfl, i, j);
+  
+  
+  #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS) 
+  {
+    int thread_id = omp_get_thread_num();
+    int num_threads = omp_get_num_threads();
+    int range_working_thread = (int) gfl->lines / num_threads;
+    int initial_i = thread_id * range_working_thread;
+    int end_i = initial_i + range_working_thread - 1;
+
+    /**
+     * [
+     *   [0x1, 0x2, 0x3], -> thread 1 (i: thread_id(1) * range_working_thread )
+     *   [0x4, 0x5, 0x6], -> thread 2 (i: thread_id(2) * range_working_thread )
+     *   [0x7, 0x8, 0x0], -> thread 3 (i: thread_id(3) * range_working_thread )
+     * ]
+     * */
+
+    #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
+    {
+      for(int i = initial_i; i < end_i; i++) {
+        
+        int thread_id = omp_get_thread_num();
+        int num_threads = omp_get_num_threads();
+        int range_working_thread = (int) gfl->collumns / num_threads;
+        int initial_j = thread_id * range_working_thread;
+        int end_j = initial_j + range_working_thread - 1;
+
+        /**
+         *  [ 0x1,      0x2,      0x3  ]
+         *     |         |         |
+         *  thread 4  thread 5  thread 6
+         * 
+         * */
+
+        for(int j = initial_j; j < end_j; j++) {
+          check_neigborn(gfl, i, j);
+        }
+      }
     }
   }
 }
@@ -86,10 +129,31 @@ void check_neigborn(struct game_of_life *gfl, int line, int col) {
 }
 
 void update_generation(struct game_of_life *gfl) {
-  for(int i = 0; i < gfl->lines; i++) {
-    for(int j = 0; j < gfl->collumns; j++) {
-      gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
-      gfl->board[i][j].alive = gfl->board[i][j].next_generation;
+
+  #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS) 
+  {
+    
+    int thread_id = omp_get_thread_num();
+    int num_threads = omp_get_num_threads();
+    int range_working_thread = (int) gfl->lines/num_threads;
+    int initial_i = thread_id * range_working_thread;
+    int end_i = initial_i + range_working_thread - 1;
+
+    for(int i = initial_i; i < end_i; i++) {
+        
+      #pragma omp parallel num_threads(MAX_ENABLED_NUMBER_THREADS)
+      {
+        int thread_id = omp_get_thread_num();
+        int num_threads = omp_get_num_threads();
+        int range_working_thread = (int) gfl->collumns / num_threads;
+        int initial_j = thread_id * range_working_thread;
+        int end_j = initial_j + range_working_thread - 1;
+
+        for(int j = initial_j; j < end_j; j++) {
+          gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
+          gfl->board[i][j].alive = gfl->board[i][j].next_generation;
+        }
+      }
     }
   }
 }

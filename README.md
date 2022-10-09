@@ -9,11 +9,12 @@
 
 ## Build and Run
 
-### Tools
+### Tools and libs
 - gcc version 9.4.0
+- openmp
 
 ```
-gcc main.c -o main && ./main
+ gcc -fopenmp main.c -o main && ./main
 ```
 
 ## Support
