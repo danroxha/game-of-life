@@ -14,7 +14,7 @@
 #include<stdbool.h>
 #include<stdlib.h>
 #include<time.h>
-#include<omp.h>
+// #include<mpi.h>
 
 struct cell {
   bool alive;
@@ -54,18 +54,10 @@ struct game_of_life new_game_of_life(int factor) {
 }
 
 void apply_rules(struct game_of_life *gfl) {
-  #pragma omp parallel
-  {
-    #pragma omp for
-    for(int i = 0; i < gfl->lines; i++) {
-      #pragma omp parallel
-      {
-        #pragma omp for
-        for(int j = 0; j < gfl->collumns; j++) {
-          check_neigborn(gfl, i, j);
-        }
-      }
-    }
+  for(int i = 0; i < gfl->lines; i++) { 
+    for(int j = 0; j < gfl->collumns; j++) {
+      check_neigborn(gfl, i, j);
+    }   
   }
 }
 
@@ -97,56 +89,28 @@ void check_neigborn(struct game_of_life *gfl, int line, int col) {
 }
 
 void update_generation(struct game_of_life *gfl) {
-  #pragma omp parallel
-  {
-    #pragma omp for
-    for(int i = 0; i < gfl->lines; i++) {     
-      #pragma omp parallel
-      {
-        #pragma omp for
-        for(int j = 0; j < gfl->collumns; j++) {
-          gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
-          gfl->board[i][j].alive = gfl->board[i][j].next_generation;
-        }
-      }
+  for(int i = 0; i < gfl->lines; i++) {
+    for(int j = 0; j < gfl->collumns; j++) {
+      gfl->board[i][j].previous_generation = gfl->board[i][j].alive;
+      gfl->board[i][j].alive = gfl->board[i][j].next_generation;
     }
   }
 }
 
 void render_board(struct game_of_life gfl, int x, int y, struct winsize screen, bool refresh) {
   
-  omp_lock_t output_lock;
-  omp_init_lock(&output_lock);
-  
-  
-  #pragma omp parallel
-  {
-    #pragma omp for
-    for(int i = 0; i < screen.ws_row; i++) {
-      
-      #pragma omp parallel
-      {
-        #pragma omp for
-        for(int j = 0; j < screen.ws_col; j++) {
+  for(int i = 0; i < screen.ws_row; i++) {
+    for(int j = 0; j < screen.ws_col; j++) {
+      if(gfl.board[i + y][j + x].alive) {
+        print(j, i, LIVE);
+        continue; 
+      }
 
-          if(gfl.board[i + y][j + x].alive) {
-            omp_set_lock(&output_lock);
-            print(j, i, LIVE);
-            omp_unset_lock(&output_lock);
-            continue; 
-          }
-
-          if(refresh || gfl.board[i + y][j + x].previous_generation != gfl.board[i + y][j + x].alive) {
-            omp_set_lock(&output_lock);
-            print(j, i, DEAD);
-            omp_unset_lock(&output_lock);
-          }
-        }
+      if(refresh || gfl.board[i + y][j + x].previous_generation != gfl.board[i + y][j + x].alive) {
+        print(j, i, DEAD);
       }
     }
   }
-
-  omp_destroy_lock(&output_lock);
 }
 
 void blinker_shape(struct game_of_life *gfl, int x, int y) {
@@ -237,23 +201,14 @@ void gun_shape(struct game_of_life *glf, int x, int y) {
 void generete_seed(struct game_of_life *glf, int factor) {
 
   srand(time(0));
-  #pragma omp parallel
-  {
-    #pragma omp for
-    for(int i = 0; i <  glf->lines; i++) {
-
-      #pragma omp parallel
-      {
-        #pragma omp for
-        for(int j = 0; j < glf->collumns; j++) {
-          glf->board[i][j].alive = rand() % factor == 1;
-          glf->board[i][j].previous_generation = glf->board[i][j].alive;
-          glf->board[i][j].next_generation = glf->board[i][j].alive;
-        }
-      }
+  for(int i = 0; i <  glf->lines; i++) {
+    for(int j = 0; j < glf->collumns; j++) {
+      glf->board[i][j].alive = rand() % factor == 1;
+      glf->board[i][j].previous_generation = glf->board[i][j].alive;
+      glf->board[i][j].next_generation = glf->board[i][j].alive;
     }
   }
 }
 
 
-#endif // __SCREEN_H__
+#endif // __SCREEN_H_

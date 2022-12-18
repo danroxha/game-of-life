@@ -13,15 +13,16 @@
 - gcc version 9.4.0
 - openmp
 
+### Build
+```
+ mpicc main.c -o main
+```
+
 ### Run
 ```
- gcc -fopenmp main.c -o main && ./main
-```
+ mpirun -n 2 main
 
-or
-
-```
-export OMP_NUM_THREADS=10 && ./main
+ # 2 is amount process
 ```
 
 ## Support

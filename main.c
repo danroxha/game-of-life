@@ -2,16 +2,21 @@
 #include<stdbool.h>
 #include<stdlib.h>
 #include<time.h>
+// #include<mpi.j>
 
 #include"screen.h"
 #include"keyboard.h"
 #include"gfl.h"
+
 
 int main(int argc, char** argv) {
 
   init_keyboard();
   nocursor();
   clear();
+
+  // MPI_Init(&argc, &argv);
+
   
   int factor = 0;
 
@@ -120,6 +125,8 @@ int main(int argc, char** argv) {
   close_keyboard(); 
   close(tty);
   reset_video();
+
+  // MPI_Finalize();
   
   return 0;
 }
