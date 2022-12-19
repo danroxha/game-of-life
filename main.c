@@ -2,7 +2,7 @@
 #include<stdbool.h>
 #include<stdlib.h>
 #include<time.h>
-// #include<mpi.j>
+#include<mpi.h>
 
 #include"screen.h"
 #include"keyboard.h"
@@ -11,35 +11,40 @@
 
 int main(int argc, char** argv) {
 
-  init_keyboard();
-  nocursor();
-  clear();
+  int rank;
 
-  // MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Datatype mpi_game_of_life_type;
+  struct_definition_game_of_life_mpi(&mpi_game_of_life_type);
 
-  
+  // if(rank == ROOT_PROCESS) {
+  //   nocursor();
+  //   clear();
+  // }
+
+  struct game_of_life gfl;
   int factor = 0;
 
-  if(argc >= 2) {
-    factor = atoi(argv[1]);
-  }
+  struct winsize ws;;
 
-  if(factor == 0) {
-    factor = 10;
-  }
+  if(rank == ROOT_PROCESS) {
 
-  struct game_of_life gfl = new_game_of_life(factor);
+    if(argc >= 2) {
+      factor = atoi(argv[1]);
+    }
+
+    if(factor == 0) {
+      factor = 10;
+    }
+
+    gfl = new_game_of_life(factor);
+    ws.ws_row = 35;// gfl.lines;
+    ws.ws_col = 150;// gfl.collumns;
+  }
   
   int key;
   int generation = 0;
-
-
-  struct winsize ws;
-  int tty;
-
-  tty = open("/dev/tty", O_RDWR);
-  if(tty < 0 || ioctl(tty, TIOCGWINSZ, &ws) < 0) 
-    err(8, "/dev/tty");
 
   bool loop = true;
 
@@ -48,85 +53,33 @@ int main(int argc, char** argv) {
 
   bool refresh = false;
 
+  double start_time, end_time;
   while(loop) {
+    start_time = MPI_Wtime();
     
-    apply_rules(&gfl);
-
-
-    if(tty < 0 || ioctl(tty, TIOCGWINSZ, &ws) < 0) 
-      err(8, "/dev/tty");
-
-    gotoxy(0, LINE + 1);
-    printf("BOARD[%d x %d]:[%d, %d]: Geração: %d - Move Screen(A S D W) - Reset (R) - Clear Screen (H)", LINE, COL, screen_x, screen_y, generation);
+    apply_rules(&gfl, mpi_game_of_life_type);
+    update_generation(&gfl);
     
-    if (kbhit()) {
-      key = readch();
-      switch(key) {
-        case KEY_ESC:
-        case KEY_ENTER: {
-          loop = false;
-          break;
-        }
-        case KEY_R_U:
-        case KEY_R_L: {
-          gfl = new_game_of_life(factor);
-          clear();
-          generation = 0;
-          continue;
-        }
-        case KEY_S_U:
-        case KEY_S_L: {
-          screen_y+=5;
-          if(screen_y >= gfl.lines - ws.ws_row) {
-            screen_y = gfl.lines - ws.ws_row;
-          }
-          refresh = true;
-          break;
-        }
-        case KEY_W_U:
-        case KEY_W_L: {
-          screen_y-= 5;
-          if(screen_y <= 0)
-            screen_y = 0;
-          refresh = true;
-          break;
-        }
-        case KEY_D_U:
-        case KEY_D_L: {
-          screen_x+=5;
-          if(screen_x >= gfl.collumns - ws.ws_col)
-            screen_x =  gfl.collumns - ws.ws_col;
-          refresh = true;
-          break;
-        }
-        case KEY_A_U:
-        case KEY_A_L: {
-          screen_x-=5;
-          if(screen_x <= 0)
-            screen_x = 0;
-          refresh = true;
-          break;
-        }
-        case KEY_H_L:
-        case KEY_H_U: {
-          clear();
-          break;
-        }
-      }
+    end_time = MPI_Wtime();
+  
+    if(rank != ROOT_PROCESS) {
+      continue;
     }
 
+    gotoxy(0, LINE + 1);
+    printf("BOARD[%d x %d]:[%d, %d]: Geração: %d - Move Screen(A S D W) - Reset (R) - Clear Screen (H) - %f", LINE, COL, screen_x, screen_y, generation, end_time - start_time); 
+
     render_board(gfl, screen_x, screen_y, ws, refresh);
-    update_generation(&gfl);
+ 
     generation++;
     refresh = false;
   }
 
-  showcursor();
-  close_keyboard(); 
-  close(tty);
-  reset_video();
-
-  // MPI_Finalize();
+  if(rank == ROOT_PROCESS) {
+    showcursor();
+    reset_video(); 
+  }
+  MPI_Finalize();
   
   return 0;
 }
