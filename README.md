@@ -20,7 +20,7 @@
 
 ### Run
 ```
- mpirun -n 2 main
+ mpirun -n 2 ./main
 
  # 2 is amount process
 ```
