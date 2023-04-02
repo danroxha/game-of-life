@@ -1,4 +1,4 @@
-## ***Parallel implementaton - (OpenMP)***
+## ***Parallel implementaton - (MPI)***
 # Conway's Game of Life
 
 [click here](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)
